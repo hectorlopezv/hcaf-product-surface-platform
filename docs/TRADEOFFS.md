@@ -158,11 +158,11 @@ HCAF has multiple product surfaces (Operator Console, config tooling, analytics)
 
 ### Recommendation
 
-Use a **shadcn-inspired monorepo package** (`@hcaf/ui`) with HCAF-specific design tokens, compact density defaults, and semantic status variants (`success`, `warning`, `danger`).
+Use an **in-repo design system** (`@hcaf/ui`) with HCAF-specific tokens, compact density defaults, and semantic status variants (`success`, `warning`, `danger`).
 
-Primitives (`Button`, `Badge`, `Card`, `DataTable`, `Field`, `Panel`, `Stack`, `Grid`) are owned in-repo, styled via CSS custom properties (`--hcaf-primary`, `--hcaf-text-muted`, etc.), and consumed by both the Operator Console shell and the SDUI component registry.
+**PoC:** primitives are owned in-repo and styled via CSS custom properties (`--hcaf-primary`, `--hcaf-text-muted`, etc.). `DataTable` is built on TanStack Table. No Tailwind or shadcn dependency in this repository.
 
-This gives visual consistency without adopting a recognizable third-party aesthetic that may not fit clinical operator tooling.
+**Production path:** migrate primitives to shadcn/ui + Tailwind while keeping the same token names and SDUI registry contracts.
 
 ### When we'd choose differently
 

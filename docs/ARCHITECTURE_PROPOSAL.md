@@ -4,6 +4,8 @@
 **Status:** Proposal (with working PoC)  
 **Last updated:** July 2026
 
+> **PoC vs proposal:** This document describes the target architecture and trade-offs. For what is **actually implemented** in this repository (custom `@hcaf/ui`, TanStack Query/Table, `@nestjs/config`, etc.), see [POC_IMPLEMENTATION.md](./POC_IMPLEMENTATION.md).
+
 ---
 
 ## Executive Summary
@@ -17,7 +19,7 @@ This proposal defines a **four-layer product-surface platform** that separates c
 3. **UI schema** — how those values are laid out on screen (server-driven)
 4. **Design system** — how it looks and feels (shared primitives)
 
-The recommended stack is **Server-Driven UI (SDUI)** over a **WebSocket event channel**, rendered by a thin `@hcaf/surface-sdk`, styled with a **shadcn/ui-based design system** (`@hcaf/ui`). Schema and ontology changes propagate to connected clients without a frontend redeploy; data updates arrive as incremental JSON Patch operations.
+The recommended stack is **Server-Driven UI (SDUI)** over a **WebSocket event channel**, rendered by a thin `@hcaf/surface-sdk`, styled with **`@hcaf/ui`** (PoC: custom CSS tokens; production: shadcn/ui optional). Frontends use **TanStack Query** for REST server state and **TanStack Table** for sortable grids. Schema and ontology changes propagate to connected clients without a frontend redeploy; data updates arrive as incremental JSON Patch operations.
 
 A working proof-of-concept in this repository demonstrates the eligibility-check workflow on the Operator Console with **five concurrent patient calls**, **runtime schema composition** (layout advisor + composer), **server-driven workflow advancement**, live agent recommendations with **server-side approve/override execution**, and operator **override feedback** logged on the call — all pushed over WebSocket without a frontend redeploy.
 
@@ -92,7 +94,7 @@ flowchart TB
 | **Ontology**      | `@hcaf/ontology`, `GET /v1/ontology`          | Entity types, field definitions, allowed values, version | Layout, styling, call-specific values |
 | **Data**          | NestJS call state (`GET /v1/calls/:id/state`) | Instance values for an active session                    | How fields are displayed              |
 | **UI schema**     | NestJS schema API + `@hcaf/surface-sdk`       | Component tree, `bind` paths, layout props               | Entity definitions, CSS               |
-| **Design system** | `@hcaf/ui` (shadcn/ui foundation)             | Visual primitives, density tokens, accessibility         | Business data shape                   |
+| **Design system** | `@hcaf/ui` (PoC: CSS custom properties; prod: shadcn/ui optional) | Visual primitives, density tokens, accessibility         | Business data shape                   |
 
 
 
@@ -177,22 +179,11 @@ The AI agent proposes actions; operators **approve** (accept) or **override** (r
 
 **REST bootstrap:** On connect, clients fetch `GET /v1/calls/:callId/schema` and `GET /v1/calls/:callId/state`, then subscribe to the `callId` room for live events.
 
-### 2.3 shadcn/ui Design System — Recommended
+### 2.3 Design System — PoC and Production Path
 
-**Choice:** `@hcaf/ui` built on shadcn/ui patterns (Radix primitives, Tailwind tokens, copy-paste ownership).
+**PoC choice:** `@hcaf/ui` with **CSS custom properties** (`--hcaf-*`), compact/comfortable density classes, and inline-styled primitives (`Button`, `Badge`, `Card`, `DataTable`, `Field`, …). `DataTable` uses **TanStack Table** for sortable columns.
 
-**Why shadcn over alternatives:**
-
-
-| Criterion                   | shadcn/ui                                                | Material UI                    | Fully custom                  |
-| --------------------------- | -------------------------------------------------------- | ------------------------------ | ----------------------------- |
-| Ownership                   | Components live in-repo; no black-box upgrades           | npm dependency, harder to fork | Full control, high build cost |
-| Density                     | Tailwind + CSS variables enable compact operator layouts | Defaults skew spacious         | Possible but slow to build    |
-| Accessibility               | Radix primitives ship accessible behavior                | Good, opinionated              | Must build from scratch       |
-| Consistency across surfaces | Shared token file + primitive set                        | Themed but heavy               | Risk of drift                 |
-
-
-The PoC implements a token-based `@hcaf/ui` package (`--hcaf-*` CSS variables, compact density class) that mirrors shadcn conventions. Production would adopt full shadcn/ui components (`Button`, `Badge`, `Table`, `Card`) with HCAF brand tokens.
+**Production recommendation:** adopt **shadcn/ui** patterns (Radix primitives, Tailwind tokens, copy-paste ownership) on top of the same HCAF token file — the PoC deliberately avoids Tailwind to keep the exercise scope focused on SDUI and API design.
 
 **Density default:** `hcaf-ui--compact` (12px base, tight table padding) for Operator Console; `comfortable` available for config and analytics surfaces.
 
@@ -201,11 +192,12 @@ The PoC implements a token-based `@hcaf/ui` package (`--hcaf-*` CSS variables, c
 
 | Concern      | Choice              | Rationale                                                             |
 | ------------ | ------------------- | --------------------------------------------------------------------- |
-| Monorepo     | pnpm + Turborepo    | Shared packages (`ontology`, `ui`, `surface-sdk`) with fast local dev |
-| API          | NestJS              | Mature WebSocket gateway, modular domains (calls, ontology, admin)    |
-| Frontend     | React + Vite        | Fast HMR for SDK iteration; team familiarity                          |
+| Monorepo     | pnpm + Turborepo    | Shared packages (`ontology`, `ui`, `surface-sdk`, `api-client`)       |
+| API          | NestJS + `@nestjs/config` | Modular domains, env-based config, WebSocket gateway              |
+| Frontend     | React + Vite + TanStack Query | Server state, caching, mutations; familiar React model        |
+| Tables       | TanStack Table      | Sortable `DataTable` in `@hcaf/ui` and SDUI registry                  |
 | Patch format | RFC 6902 JSON Patch | Standard, small payloads, library support (`fast-json-patch`)         |
-| CI           | GitHub Actions      | `pnpm build` on PR; deploy workflows for API and static frontend      |
+| CI / Deploy  | GitHub Actions      | `pnpm build` on PR; Railway (API) + Vercel (frontends) on `main`      |
 
 
 ---
@@ -434,7 +426,7 @@ Phased delivery de-risks the platform and produces demoable milestones for stake
 | Deliverable            | Outcome                                                       |
 | ---------------------- | ------------------------------------------------------------- |
 | `@hcaf/ontology` v1    | Patient, provider, eligibility, agent entities                |
-| `@hcaf/ui` v0          | shadcn-based tokens, Button, Badge, Card, Field, DataTable    |
+| `@hcaf/ui` v0          | Custom CSS tokens, TanStack Table DataTable, Button, Badge, Card, Field |
 | `@hcaf/surface-sdk` v0 | `SurfaceRenderer`, `defaultRegistry`, `applyDataPatch`        |
 | NestJS REST            | `/v1/ontology`, `/v1/calls/:id/schema`, `/v1/calls/:id/state` |
 | Operator Console shell | Bootstrap fetch, static render of eligibility workflow        |
@@ -484,8 +476,8 @@ Phased delivery de-risks the platform and produces demoable milestones for stake
 | UI architecture     | **SDUI**                     | Low-code builder (Retool-style) | Operators need sub-second custom UX; low-code adds runtime weight and less control |
 | Real-time transport | **WebSocket (Socket.IO)**    | SSE + REST polling              | Bidirectional operator actions; lower latency than poll; room semantics            |
 | Real-time transport | **WebSocket**                | GraphQL subscriptions           | Simpler ops envelope; JSON Patch is transport-agnostic                             |
-| Design system       | **shadcn/ui + Tailwind**     | Material UI                     | In-repo ownership, compact density, Radix a11y                                     |
-| Design system       | **shadcn/ui**                | Fully custom CSS                | Faster time-to-consistency; proven primitive set                                   |
+| Design system (PoC) | **Custom `@hcaf/ui` + TanStack Table** | shadcn/ui + Tailwind (prod path) | PoC ships owned primitives; shadcn recommended for production scale |
+| Design system (prod)| **shadcn/ui + Tailwind**     | Material UI                     | In-repo ownership, compact density, Radix a11y when team adopts shadcn |
 | State updates       | **JSON Patch**               | Full state replace              | Bandwidth-efficient for dense eligibility tables                                   |
 | Monorepo tool       | **pnpm + Turborepo**         | Nx                              | Sufficient for 3 packages + 2 apps; lower config overhead                          |
 | API framework       | **NestJS**                   | Fastify raw                     | First-class WS gateway, module boundaries match domains                            |
