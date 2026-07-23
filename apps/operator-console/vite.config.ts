@@ -10,6 +10,7 @@ export default defineConfig({
   server: { port: Number(process.env.VITE_OPERATOR_CONSOLE_PORT ?? 5173) },
   resolve: {
     alias: [
+      { find: '@hcaf/api-client', replacement: path.join(pkg('api-client'), 'index.ts') },
       { find: '@hcaf/ui/styles.css', replacement: path.join(pkg('ui'), 'styles.css') },
       { find: '@hcaf/surface-sdk', replacement: path.join(pkg('surface-sdk'), 'index.ts') },
       { find: '@hcaf/ontology', replacement: path.join(pkg('ontology'), 'index.ts') },

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { io } from 'socket.io-client';
 import {
   SurfaceRenderer,
@@ -7,67 +8,55 @@ import {
   type Operation,
   type UISchema,
 } from '@hcaf/surface-sdk';
+import {
+  createApi,
+  queryKeys,
+  type CallQueueItem,
+  type WorkflowProgress,
+} from '@hcaf/api-client';
 import { Badge, StatusDot, SurfaceNav } from '@hcaf/ui';
 import { DEFAULT_CALL_ID } from './default-call';
 import { env } from './env';
 
-interface CallQueueItem {
-  callId: string;
-  patientName: string;
-  memberId: string;
-  provider: string;
-  specialty: string;
-  status: 'live' | 'waiting';
-  activeModules: number;
-  schemaVersion: string;
-}
-
-interface WorkflowState {
-  activeModules: string[];
-  modules?: Array<{ id: string; title: string; status: string }>;
-}
+const api = createApi(env.apiUrl);
 
 export function App() {
-  const [callId, setCallId] = useState(DEFAULT_CALL_ID);
-  const [callQueue, setCallQueue] = useState<CallQueueItem[]>([]);
+  const queryClient = useQueryClient();
+  const [callId, setCallId] = useState(
+    () => new URLSearchParams(window.location.search).get('callId') ?? DEFAULT_CALL_ID,
+  );
   const [schema, setSchema] = useState<UISchema | null>(null);
   const [state, setState] = useState<CallState | null>(null);
   const [status, setStatus] = useState<'connecting' | 'live' | 'offline'>('connecting');
   const [schemaVersion, setSchemaVersion] = useState('—');
   const [ontologyVersion, setOntologyVersion] = useState('—');
-  const [workflow, setWorkflow] = useState<WorkflowState | null>(null);
+  const [workflow, setWorkflow] = useState<WorkflowProgress | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const socketRef = useRef<ReturnType<typeof io> | null>(null);
   const callIdRef = useRef(callId);
   callIdRef.current = callId;
 
-  const hydrateCall = useCallback(async (id: string) => {
-    const [s, d, progress, queueRes] = await Promise.all([
-      fetch(`${env.apiUrl}/v1/calls/${id}/schema`).then((r) => r.json()),
-      fetch(`${env.apiUrl}/v1/calls/${id}/state`).then((r) => r.json()),
-      fetch(`${env.apiUrl}/v1/workflows/eligibility-check/progress?callId=${id}`).then((r) => r.json()),
-      fetch(`${env.apiUrl}/v1/calls`).then((r) => r.json()),
-    ]);
+  const sessionQuery = useQuery({
+    queryKey: queryKeys.calls.session(env.apiUrl, callId),
+    queryFn: () => api.getCallSession(callId),
+  });
+
+  useEffect(() => {
+    if (!sessionQuery.data) return;
+    const { schema: s, state: d, progress } = sessionQuery.data;
     setSchema(s);
     setState(d);
     setSchemaVersion(s.version);
     setOntologyVersion(s.ontologyVersion);
     setWorkflow(progress);
-    setCallQueue(queueRes.calls ?? []);
-  }, []);
+    if (sessionQuery.isSuccess && !notice) {
+      setNotice('Select a patient from the queue. Workflow updates arrive via WebSocket.');
+    }
+  }, [sessionQuery.data, sessionQuery.isSuccess, notice]);
 
   useEffect(() => {
-    const initialCallId =
-      new URLSearchParams(window.location.search).get('callId') ?? DEFAULT_CALL_ID;
-    callIdRef.current = initialCallId;
-    setCallId(initialCallId);
-
-    hydrateCall(initialCallId).then(() => {
-      setNotice('Live queue — select a patient. Each call evolves independently via server push.');
-    });
-
-    const socket = io(env.wsUrl, { query: { callId: initialCallId } });
+    const socket = io(env.wsUrl, { query: { callId } });
     socketRef.current = socket;
 
     socket.on('connect', () => setStatus('live'));
@@ -76,7 +65,10 @@ export function App() {
     socket.on('message', (msg: { type: string; payload: unknown }) => {
       if (msg.type === 'call.queue') {
         const p = msg.payload as { calls: CallQueueItem[] };
-        setCallQueue(p.calls ?? []);
+        queryClient.setQueryData(
+          queryKeys.calls.session(env.apiUrl, callIdRef.current),
+          (prev) => (prev ? { ...prev, queue: p.calls ?? [] } : prev),
+        );
         return;
       }
 
@@ -114,10 +106,16 @@ export function App() {
         setOntologyVersion(ont.version);
       }
       if (msg.type === 'workflow.progress' && forActiveCall) {
-        setWorkflow(msg.payload as WorkflowState);
+        setWorkflow(msg.payload as WorkflowProgress);
       }
       if (msg.type === 'platform.notice') {
-        const n = msg.payload as { message: string; callId?: string; ontologyVersion?: string; schemaVersion?: string; activeModules?: string[] };
+        const n = msg.payload as {
+          message: string;
+          callId?: string;
+          ontologyVersion?: string;
+          schemaVersion?: string;
+          activeModules?: string[];
+        };
         if (!n.callId || n.callId === callIdRef.current) {
           setNotice(n.message);
           if (n.ontologyVersion) setOntologyVersion(n.ontologyVersion);
@@ -127,15 +125,17 @@ export function App() {
       }
     });
 
-    return () => { socket.disconnect(); };
-  }, [hydrateCall]);
+    return () => {
+      socket.disconnect();
+    };
+  }, [callId, queryClient]);
 
   const switchCall = (nextCallId: string) => {
     if (nextCallId === callIdRef.current) return;
     callIdRef.current = nextCallId;
     setCallId(nextCallId);
     socketRef.current?.emit('call.switch', { callId: nextCallId });
-    hydrateCall(nextCallId);
+    void queryClient.invalidateQueries({ queryKey: queryKeys.calls.session(env.apiUrl, nextCallId) });
   };
 
   const onAction = useCallback((action: string, payload?: unknown) => {
@@ -145,6 +145,7 @@ export function App() {
     socketRef.current?.emit('operator.action', body);
   }, []);
 
+  const callQueue = sessionQuery.data?.queue ?? [];
   const activePatient = callQueue.find((c) => c.callId === callId);
   const activeTitles =
     workflow?.modules?.filter((m) => m.status === 'active').map((m) => m.title) ??
@@ -231,7 +232,7 @@ export function App() {
                 </div>
                 <div style={{ marginTop: 4, display: 'flex', gap: 4 }}>
                   <Badge variant={c.status === 'live' ? 'success' : 'default'}>{c.status}</Badge>
-                  {c.activeModules > 0 && <Badge variant="info">{c.activeModules} modules</Badge>}
+                  {(c.activeModules ?? 0) > 0 && <Badge variant="info">{c.activeModules} modules</Badge>}
                 </div>
               </button>
             );
@@ -239,11 +240,13 @@ export function App() {
         </aside>
 
         <main style={{ flex: 1, padding: 20, overflowY: 'auto', maxWidth: 960 }}>
-          {schema && state ? (
-            <SurfaceRenderer schema={schema} data={state} onAction={onAction} />
-          ) : (
+          {sessionQuery.isPending ? (
             <div style={{ color: 'var(--hcaf-text-muted)' }}>Loading call session…</div>
-          )}
+          ) : sessionQuery.isError ? (
+            <div style={{ color: 'var(--hcaf-danger)' }}>Failed to load call session.</div>
+          ) : schema && state ? (
+            <SurfaceRenderer schema={schema} data={state} onAction={onAction} />
+          ) : null}
         </main>
       </div>
     </div>
