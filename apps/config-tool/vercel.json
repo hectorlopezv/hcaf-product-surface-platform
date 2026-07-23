@@ -1,0 +1,6 @@
+{
+  "installCommand": "cd ../.. && corepack enable && pnpm install",
+  "buildCommand": "cd ../.. && pnpm build --filter @hcaf/config-tool",
+  "outputDirectory": "dist",
+  "framework": null
+}
