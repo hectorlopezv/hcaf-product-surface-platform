@@ -8,9 +8,11 @@ Architecture proposal and proof-of-concept for SpinSci's Healthcare AI Fabric pr
 
 | Doc | Purpose |
 |-----|---------|
+| [docs/POC_IMPLEMENTATION.md](docs/POC_IMPLEMENTATION.md) | **What is actually built** (vs production recommendations) |
 | [docs/TALKING_POINTS.md](docs/TALKING_POINTS.md) | **Technical decisions to explain in review** |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | Deploy API (Railway) + frontends (Vercel) |
 | [docs/APP_FLOW_SLIDES.md](docs/APP_FLOW_SLIDES.md) | App flow slide deck (UI ↔ API) |
-| [docs/ARCHITECTURE_PROPOSAL.md](docs/ARCHITECTURE_PROPOSAL.md) | Full architecture proposal |
+| [docs/ARCHITECTURE_PROPOSAL.md](docs/ARCHITECTURE_PROPOSAL.md) | Full architecture proposal (target state) |
 | [docs/SCHEMA_COMPOSITION.md](docs/SCHEMA_COMPOSITION.md) | Runtime schema composition |
 | [docs/SDUI_AND_AGENT_MODEL.md](docs/SDUI_AND_AGENT_MODEL.md) | SDUI + agent approve/override model |
 
