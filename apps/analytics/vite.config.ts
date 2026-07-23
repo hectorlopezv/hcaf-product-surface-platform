@@ -10,6 +10,7 @@ export default defineConfig({
   server: { port: Number(process.env.VITE_ANALYTICS_PORT ?? 5175) },
   resolve: {
     alias: [
+      { find: '@hcaf/api-client', replacement: path.join(pkg('api-client'), 'index.ts') },
       { find: '@hcaf/ui/styles.css', replacement: path.join(pkg('ui'), 'styles.css') },
       { find: '@hcaf/ui', replacement: path.join(pkg('ui'), 'index.tsx') },
     ],
