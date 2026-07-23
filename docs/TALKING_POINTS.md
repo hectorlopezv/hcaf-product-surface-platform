@@ -22,14 +22,14 @@ Use this guide to explain the PoC in a technical review.
 - `ConfigModule` loads environment variables; `SocketIoService` injects WebSocket access into controllers instead of `globalThis`.
 - Scales to guards, interceptors, and DTO validation as the API grows.
 
-## 3. Why WebSocket on operator console but REST polling on analytics?
+## 3. Why WebSocket on operator console but TanStack Query on analytics?
 
-**Decision:** Operator console uses Socket.io for live eligibility patches and workflow advances. Analytics polls `GET /v1/analytics/summary` every N seconds.
+**Decision:** Operator console uses Socket.io for live eligibility patches and workflow advances. Analytics uses TanStack Query with `refetchInterval` on `GET /v1/analytics/summary`.
 
 **Reasoning:**
-- Operators need sub-second updates during a live call.
-- Analytics is read-only aggregate data — polling is simpler, stateless, and cacheable.
-- Separating transport per surface avoids over-engineering analytics with persistent connections.
+- Operators need sub-second updates during a live call (push model).
+- Analytics is read-only aggregate data — TanStack Query handles polling, caching, loading/error states, and retries without manual `useEffect` + `setInterval`.
+- Config tooling uses `useQuery` for workspace data and `useMutation` for surface/ontology changes with cache invalidation.
 
 ## 4. Runtime schema composition
 
@@ -65,4 +65,5 @@ Use this guide to explain the PoC in a technical review.
 **Reasoning:**
 - Ontology types are single-sourced.
 - `SurfaceNav` and design tokens live in `@hcaf/ui` once, not copied per app.
+- `DataTable` uses TanStack Table for sortable columns in analytics, config-tool, and SDUI registry renders.
 - API re-exports shared types from `@hcaf/surface-sdk` to avoid drift with the renderer.

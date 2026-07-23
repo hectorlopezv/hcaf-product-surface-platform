@@ -2,7 +2,7 @@
 
 Architecture proposal and proof-of-concept for SpinSci's Healthcare AI Fabric product surfaces.
 
-**Stack:** NestJS 11 (API) · React 19 + Vite 6 (frontends) · Socket.io · pnpm + Turbo monorepo
+**Stack:** NestJS 11 (API) · React 19 + Vite 6 + TanStack Query & Table (frontends) · Socket.io · pnpm + Turbo monorepo
 
 ## Documentation
 
@@ -36,12 +36,13 @@ Configuration is read from `.env` (see `.env.example`). Frontends use `VITE_*` v
 ```
 apps/
   api/                 NestJS REST + WebSocket (@nestjs/config)
-  operator-console/    React + Vite — live operator SDUI
-  config-tool/         Ontology & workflow configuration
-  analytics/           Read-only cross-call metrics (REST polling)
+  operator-console/    React + Vite + TanStack Query — live operator SDUI
+  config-tool/         Ontology & workflow configuration (TanStack Query)
+  analytics/           Read-only cross-call metrics (TanStack Query polling)
 packages/
+  api-client/          @hcaf/api-client — typed REST client + query keys
   ontology/            @hcaf/ontology — entity/field definitions
-  ui/                  @hcaf/ui — shared components + SurfaceNav
+  ui/                  @hcaf/ui — shared components, SurfaceNav, TanStack Table DataTable
   surface-sdk/         @hcaf/surface-sdk — SDUI renderer + session
 ```
 
