@@ -1,0 +1,27 @@
+:root {
+  --hcaf-bg: #0f1419;
+  --hcaf-surface: #1a2332;
+  --hcaf-surface-elevated: #243044;
+  --hcaf-border: #2d3a4f;
+  --hcaf-text: #e8edf4;
+  --hcaf-text-muted: #8b9cb3;
+  --hcaf-primary: #3b82f6;
+  --hcaf-success: #22c55e;
+  --hcaf-warning: #f59e0b;
+  --hcaf-danger: #ef4444;
+  --hcaf-radius: 6px;
+  --hcaf-font: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.hcaf-ui {
+  font-family: var(--hcaf-font);
+  color: var(--hcaf-text);
+}
+
+.hcaf-ui--compact {
+  font-size: 12px;
+}
+
+.hcaf-ui--comfortable {
+  font-size: 14px;
+}
