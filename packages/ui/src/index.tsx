@@ -1,5 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 
+export { DataTable } from './data-table';
+
 export type Density = 'compact' | 'comfortable';
 
 export function cn(...parts: Array<string | false | undefined>): string {
@@ -291,71 +293,6 @@ export function Timeline({ items }: { items: TimelineItem[] }) {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-export function DataTable({
-  rows,
-  columns,
-}: {
-  rows: Array<Record<string, unknown>>;
-  columns: string[];
-}) {
-  return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-        <thead>
-          <tr>
-            {columns.map((col) => (
-              <th
-                key={col}
-                style={{
-                  textAlign: 'left',
-                  padding: '6px 8px',
-                  borderBottom: '1px solid var(--hcaf-border)',
-                  color: 'var(--hcaf-text-muted)',
-                  fontWeight: 600,
-                  textTransform: 'capitalize',
-                }}
-              >
-                {col}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={i}>
-              {columns.map((col) => (
-                <td key={col} style={{ padding: '6px 8px', borderBottom: '1px solid var(--hcaf-border)' }}>
-                  {col === 'status' ? (
-                    <Badge
-                      variant={
-                        row[col] === 'active' || row[col] === 'approved'
-                          ? 'success'
-                          : row[col] === 'pending' || row[col] === 'submitted'
-                            ? 'warning'
-                            : row[col] === 'denied'
-                              ? 'danger'
-                              : 'default'
-                      }
-                    >
-                      {String(row[col] ?? '—')}
-                    </Badge>
-                  ) : col === 'copay' && typeof row[col] === 'number' ? (
-                    `$${row[col].toFixed(2)}`
-                  ) : col === 'amount' && typeof row[col] === 'number' ? (
-                    `$${row[col].toFixed(2)}`
-                  ) : (
-                    String(row[col] ?? '—')
-                  )}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }
